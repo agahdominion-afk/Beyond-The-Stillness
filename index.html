@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>AR Artwork Overlay</title>
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    /* No background here: MindAR places the camera <video> behind the page (negative z-index),
+       so any opaque body/html background would paint over it and make the feed look black. */
+    html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+    a-scene, a-scene canvas { background: transparent !important; }
+    #hint {
+      position: fixed; left: 0; right: 0; bottom: 24px; z-index: 10;
+      text-align: center; color: #fff; font: 500 14px/1.4 system-ui, sans-serif;
+      text-shadow: 0 1px 4px rgba(0,0,0,.7); pointer-events: none;
+      transition: opacity .3s;
+    }
+    #hint.hidden { opacity: 0; }
+  </style>
+
+  <script>
+    // Sizes the plane to the overlay image's aspect ratio (width fixed at 1 = target width).
+    // Assumes the overlay was exported at the same proportions as the tracked artwork.
+    AFRAME.registerComponent('fit-to-image', {
+      schema: { src: { type: 'string' }, width: { default: 1 } },
+      init() {
+        const img = new Image();
+        img.onload = () => {
+          this.el.setAttribute('width', this.data.width);
+          this.el.setAttribute('height', this.data.width * img.naturalHeight / img.naturalWidth);
+        };
+        img.src = this.data.src;
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const hint = document.getElementById('hint');
+      const target = document.getElementById('target');
+      target.addEventListener('targetFound', () => hint.classList.add('hidden'));
+      target.addEventListener('targetLost', () => hint.classList.remove('hidden'));
+    });
+  </script>
+</head>
+
+<body>
+  <div id="hint">Point your camera at the artwork</div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 5; warmupTolerance: 5; uiScanning: yes; uiLoading: yes;"
+    color-space="sRGB"
+    renderer="alpha: true; colorManagement: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <img id="overlay" src="./overlay.png" crossorigin="anonymous" />
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity id="target" mindar-image-target="targetIndex: 0">
+      <!-- Lies flat on the artwork (no rotation); sits 1mm above it to avoid z-fighting -->
+      <a-plane
+        src="#overlay"
+        fit-to-image="src: ./overlay.png; width: 1"
+        position="0 0 0.001"
+        rotation="0 0 0"
+        material="transparent: true; alphaTest: 0.01; shader: flat; side: double"></a-plane>
+    </a-entity>
+  </a-scene>
+</body>
+</html>
